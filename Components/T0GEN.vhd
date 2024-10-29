@@ -42,7 +42,7 @@ begin
                     genPulse <= not ACTIVE;
                     
                 else
-                    --Reset Counter whenever 
+                    --Reset Counter whenever genCounter is half of sample amount
                     genCounter := 0;
                     genPulse <= not genPulse;    
                 end if;   
