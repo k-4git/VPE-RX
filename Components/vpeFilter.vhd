@@ -22,7 +22,6 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.numeric_std.all;
 
-
 entity vpeFilter is
     Port ( vpeSerial : in STD_LOGIC;
            clock : in STD_LOGIC;
