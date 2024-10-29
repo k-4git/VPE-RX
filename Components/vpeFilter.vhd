@@ -1,11 +1,10 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+
 -- 
 -- Create Date: 10/27/2024 03:31:23 PM
--- Design Name: 
+-- Design Name: vpeFilter - 16-bit long BUFFER
 -- Module Name: vpeFilter - vpeFilter_ARCH
--- Project Name: 
+-- Project Name: RxComponents
 -- Target Devices: 
 -- Tool Versions: 
 -- Description: 
@@ -21,15 +20,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+use ieee.numeric_std.all;
 
 entity vpeFilter is
     Port ( vpeSerial : in STD_LOGIC;
@@ -39,33 +30,54 @@ entity vpeFilter is
 end vpeFilter;
 
 architecture vpeFilter_ARCH of vpeFilter is
-constant ACTIVE: std_logic := '1';    
+--CONSTANTS
+constant ACTIVE: std_logic := '1';
+--INTERNAL SIGNALS FOR DISPLAY
+signal vpeTemp: integer;
+signal vpeWord: std_logic_vector(15 downto 0);
+signal vpeBit: integer;
 begin
 
     noiseFilter: process (clock, reset)
-    variable filterHigh: integer range 0 to 11 := 0;
-    variable filterLow: integer range 0 to 11 := 0;
+    --VARIABLES
+    
+    variable vpeSixteen: std_logic_vector(15 downto 0);
+    variable vpeBalance: integer range 0 to 15 := 0;
+    variable shiftBit: integer range 0 to 1;
     begin
         if(reset = ACTIVE) then
             vpeClean <= not ACTIVE;
+            vpeSixteen := (others => '0');
         elsif(rising_edge (clock)) then
-            if(vpeSerial = ACTIVE) then
-                filterHigh := filterHigh + 1;
+            --Determines if leftmost bit is 1 or 0 and stores it
+            --in shiftBit
+            if(vpeSixteen(15) = ACTIVE) then                                            
+                shiftBit := 1;                                                          
             else
-                filterHigh := filterLow + 1;
+                shiftBit := 0;
             end if;
             
-            if(filterHigh = 11) then
+            --Subtracts the Leftmost bit out from the Counter
+            --Shifts vpeSerial into the Rightmost bit
+            vpeBalance := vpeBalance - shiftBit;                                        
+            vpeSixteen := vpeSixteen(14 downto 0) & vpeSerial;                         
+            
+            --If vpeSerial is Active, add to Counter
+            if(vpeSerial = ACTIVE) then                                                 
+                vpeBalance := vpeBalance + 1;
+            end if;
+            
+            --DISPLAY INTERNAL SIGNALS
+            vpeTemp <= vpeBalance; 
+            vpeWord <= vpeSixteen;
+            vpeBit <= shiftBit;  
+            
+            --If Counter is 3/4 of total length of buffer, Output HIGH
+            if(vpeBalance > 11) then                                                    
                 vpeClean <= ACTIVE;
-                
-                filterHigh := 0;
-                filterLow := 0;
-            elsif(filterLow = 11) then
+            else
                 vpeClean <= not ACTIVE;
-                
-                filterHigh := 0;
-                filterLow := 0;
-            end if;         
+            end if;
         end if;
     end process;
 
