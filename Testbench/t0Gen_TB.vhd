@@ -59,7 +59,7 @@ begin
         -- Initialize signals
         reset <= '1';
         t0GenEn <= '0';
-        t0Samples <= 16;  -- Test with 10 samples
+        t0Samples <= 8;  -- Test with 8 samples
         wait for CLOCK_PERIOD * 2;
         
         -- Release reset
@@ -72,9 +72,9 @@ begin
         
         -- Test with different sample values
         t0Samples <= 20;
-        wait for CLOCK_PERIOD * 50;
+        wait for CLOCK_PERIOD * 200;
         
-        t0Samples <= 5;
+        t0Samples <= 4;
         wait for CLOCK_PERIOD * 50;
         
         -- Disable t0Gen

@@ -19,7 +19,8 @@ architecture behavioral of t0GEN is
     
     --+++=========Signals========+++--
     signal sampleCount : integer := 0;
-    signal gentap : std_logic := '0';
+    signal genPulse : std_logic := '0';
+    
     --+++=========Functions========+++--
 
 begin
@@ -38,17 +39,20 @@ begin
                -- We want to output a pulse every half cycle to sample in the middle
                 if genCounter /= sampleCount then
                     genCounter := genCounter+1;
-                    genTap <= not ACTIVE;
+                    genPulse <= not ACTIVE;
                     
                 else
                     --Reset Counter whenever 
                     genCounter := 0;
-                    genTap <= not genTap;    
-                end if;                
+                    genPulse <= not genPulse;    
+                end if;   
+            else 
+                genPulse <= not ACTIVE;
+                genCounter := 0;
             end if;
         end if;
        -- Assign output--
-        t0En <= genTap;
+        t0En <= genPulse;
     end process;
 
     
