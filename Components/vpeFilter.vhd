@@ -21,7 +21,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-
+use ieee.numeric_std.all;
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
@@ -39,33 +39,33 @@ entity vpeFilter is
 end vpeFilter;
 
 architecture vpeFilter_ARCH of vpeFilter is
-constant ACTIVE: std_logic := '1';    
+constant ACTIVE: std_logic := '1';
+signal vpeTemp: integer;
 begin
 
     noiseFilter: process (clock, reset)
-    variable filterHigh: integer range 0 to 11 := 0;
-    variable filterLow: integer range 0 to 11 := 0;
+    variable vpeSixteen: integer := 0;
+    variable vpeCap: integer := 0;
     begin
         if(reset = ACTIVE) then
             vpeClean <= not ACTIVE;
         elsif(rising_edge (clock)) then
             if(vpeSerial = ACTIVE) then
-                filterHigh := filterHigh + 1;
-            else
-                filterHigh := filterLow + 1;
+                if(vpeCap < 15) then
+                    vpeSixteen := vpeSixteen + 1;
+                end if;
+            elsif(vpeSerial = not ACTIVE) then
+                if(vpeSixteen > 0) then
+                    vpeSixteen := vpeSixteen - 1;
+                end if;
             end if;
             
-            if(filterHigh = 11) then
+            if(vpeSixteen >= 11) then
                 vpeClean <= ACTIVE;
-                
-                filterHigh := 0;
-                filterLow := 0;
-            elsif(filterLow = 11) then
+            else
                 vpeClean <= not ACTIVE;
-                
-                filterHigh := 0;
-                filterLow := 0;
-            end if;         
+            end if;
+            vpeTemp <= vpeSixteen;
         end if;
     end process;
 
