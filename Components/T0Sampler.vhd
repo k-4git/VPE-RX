@@ -46,172 +46,149 @@ architecture T0Sampler_ARCH of T0Sampler is
 
 constant ACTIVE: std_logic := '1';
 
-type sample_t is (LOWCOUNT, HIGHCOUNT, CALCULATE, TIMERESET);
-
-signal lowTime: std_logic_vector(31 downto 0);
-signal highTime: std_logic_vector(31 downto 0);
-
-signal t0Sampled: std_logic_vector(31 downto 0);
-
-signal SampleState: sample_t;
-
-signal lowCountEn: std_logic;
-signal highCountEn: std_logic;
-signal timeResetEn: std_logic;
-signal resultEn: std_logic;
+signal highValue : integer;
+signal lowValue: integer;
 signal calculateEn: std_logic;
 
-begin
+signal frameSignal: integer;
+signal wordSignalMin: integer;
+signal wordSignalPlus: integer;
 
+signal lastLowSignal: integer;
+signal lastHighSignal: integer;
+
+begin
     
+    SAMPLE_COUNTER: process(clock, reset)
+    variable lastVpe: std_logic := not ACTIVE;
+    variable lastLow: integer;
+    variable lasthigh: integer;
+    begin
+        if(reset = ACTIVE) then
+            highValue <= 0;
+            lowValue <= 0;
+        elsif(rising_edge (clock)) then
         
-    SAMPLE_CONTROLLER: process(clock, reset)
-    
-    variable edgeFlag: std_logic := ACTIVE;
-    
-    begin
-        if(reset = ACTIVE) then
-            frameStartEn <= not ACTIVE;
-            wordStartEn <= not ACTIVE;
-            timeResetEn <= not ACTIVE;
-        elsif(rising_edge (clock)) then
+            --if vpeClean is HIGH,
+            if(vpeClean = ACTIVE) then
             
-            case (SampleState) is
-            
-            --LOWCOUNT State, Will count in Background until vpeClean goes HIGH
-            --Afterward, will send lowCountEn to stop count and Transition into HIGHCOUNT
-            when LOWCOUNT =>
-            
-                timeResetEn <= not ACTIVE;
-                
-                if(vpeClean = not edgeFlag) then
-                    sampleState <= HIGHCOUNT;
-                    lowCountEn <= not ACTIVE;
-                    highCountEn <= ACTIVE;
-                end if;
-            
-            --HIGHCOUNT, will count in Background after vpeClean goes HIGH
-            --Will send highCountEn to stop count when vpeClean goes low and transition
-            --into CALCULATE
-            when HIGHCOUNT =>
-                
-                if(vpeClean = not edgeFlag) then
-                    sampleState <= CALCULATE;
-                    highCountEn <= not ACTIVE;
-                    calculateEn <= ACTIVE;
-                end if;
-                
-            --will calculate t0 and receive t0PushEn when done, transitions back into LOWCOUNT
-            when CALCULATE =>
-                if(resultEn = ACTIVE) then
-                    sampleState <= TIMERESET;
-                end if;
-                
-            --Resets the values of lowTime and highTime, while setting lowCountEn back to HIGH
-            when TIMERESET =>
-                resultEn <= not ACTIVE;
-                timeResetEn <= ACTIVE;
-                lowCountEn <= ACTIVE;
-                sampleState <= LOWCOUNT;
-                edgeFlag := ACTIVE;
-            end case;
-        end if;
-    end process;
-    
-    LOW_COUNT: process(clock, reset)
-    
-    variable lowCount: std_logic_vector(31 downto 0);
-    
-    begin
-        if(reset = ACTIVE) then
-            lowTime <= (others => '0');
-        elsif(rising_edge (clock)) then
-            if(lowCountEn = ACTIVE) then
-                if(timeResetEn = ACTIVE) then
-                    lowCount := (others => '0');
+                --If vpeClean is rising, then set highValue to 0
+                if(vpeClean = not lastVpe) then
+                    lastHigh := highValue;
+                    highValue <= 0;
+                    lastVpe := ACTIVE;
                 else
-                    lowCount := std_logic_vector(unsigned(lowCount) + 1);
+                    --Increment highValue by 1
+                    highValue <= highValue + 1;
                 end if;
-            else     
-                lowTime <= lowCount;
-            end if;          
-        end if;
-    end process;
-    
-    HIGH_COUNT: process(clock, reset)
-    
-    variable highCount: std_logic_vector(31 downto 0);
-    
-    begin
-        if(reset = ACTIVE) then
-            highTime <= (others => '0');
             
-        elsif(rising_edge (clock)) then
-        
-            if(highCountEn = ACTIVE) then
-            
-                if(timeResetEn = ACTIVE) then
-                    highCount := (others => '0');
+            --If vpeClean is LOW    
+            elsif(vpeClean = not ACTIVE) then
+                
+                --If vpeClean is not falling
+                if(vpeClean = lastVpe) then
+                    --Incrememnt lowValue and set calculateEn to LOW
+                    lowValue <= lowValue + 1;
+                    calculateEn <= not ACTIVE;
+                    
                     
                 else
-                    highCount := std_logic_vector(unsigned(highCount) + 1);
+                    lastLow:= lowValue;
+                    --Else, set lowValue to 0 and set calculateEn to HIGH
+                    lowValue <= 0;
+                    calculateEn <= ACTIVE;
+                    lastVpe := not ACTIVE;
                 end if;
-                
-            else     
-                highTime <= highCount;
-            end if; 
+                          
+            end if;
+            lastLowSignal <= lastLow;
+            lastHighSignal <= lastHigh;
         end if;
     end process;
     
-    CALCULATE_T0: process(clock,reset)
-    variable frameFOURx: std_logic_vector(31 downto 0) := (others => '0');
-    variable frameTWOx: std_logic_vector(31 downto 0) := (others => '0');
-    variable frameThresh: std_logic_vector(31 downto 0) := (others => '0');
+    CALCULATE_T0: process(clock, reset)
+    variable highBit: std_logic_vector(31 downto 0);
+    variable lowBit: std_logic_vector(31 downto 0);
     
-    variable highTemp: std_logic_vector(31 downto 0) := (others => '0');
-    variable lowTemp: std_logic_vector(31 downto 0) := (others => '0');
+    variable t0FOURx: std_logic_vector(31 downto 0);
+    variable t0TWOx: std_logic_vector(31 downto 0);
     
-    variable highBuffer: std_logic_vector(31 downto 0) := (others => '0');
+    variable bufferTWELVE: std_logic_vector(31 downto 0);
+    variable frameThresh: std_logic_vector(31 downto 0);
     
-    variable adjustWordPlus: std_logic_vector(31 downto 0) := (others => '0');
-    variable adjustWordMin: std_logic_vector(31 downto 0) := (others => '0');
-    variable adjustFrame: std_logic_vector(31 downto 0) := (others => '0');
+    variable adjustWordMin: std_logic_vector(31 downto 0);
+    variable adjustWordPlus: std_logic_vector(31 downto 0);
+    variable adjustFrame: std_logic_vector(31 downto 0);
+    
+    variable frameStart: std_logic;
+    variable wordStart: std_logic;
+    
     
     begin
+    
         if(reset = ACTIVE) then
-            frameStartEn <= not ACTIVE;
             wordStartEn <= not ACTIVE;
+            frameStartEn <= not ACTIVE;
             t0Samples <= 0;
-            resultEn <= not ACTIVE;
-        elsif(rising_edge (clock)) then       
-            lowTemp := lowTime;
-            highTemp := highTime;
             
-            highBuffer := "000" & highTemp(28 downto 0);
-            
-            frameFOURx := (highTemp(29 downto 0) & "00");
-            frameTWOx := (highTemp(30 downto 0) & '0');
-            frameThresh :=  std_logic_vector(unsigned(frameFOURx) + unsigned(frameTWOx));
-            
-            adjustFrame :=  std_logic_vector(unsigned(frameThresh) - unsigned(highBuffer));
-            
-            adjustWordPlus := std_logic_vector(unsigned(highTemp) + unsigned(highBuffer));
-            adjustWordMin := std_logic_vector(unsigned(highTemp) - unsigned(highBuffer));
-            
-            if(lowTemp >= adjustFrame) then
-                frameStartEn <= ACTIVE;
+        elsif(rising_edge (clock)) then
+            if(calculateEn = ACTIVE) then
+                --Turn high and low Values to 32-Bit Words
+                highBit := std_logic_vector(to_unsigned(lastHighSignal, 32));
+                lowBit := std_logic_vector(to_unsigned(lastLowSignal, 32));
+                report "starting calculation with high, low being";
+                report integer'image(highValue);
+                report integer'image(lastLowSignal);
+                --Shift highBit to create 4x and 2x
+                t0FOURx := highBit(29 downto 0) & "00";
+                t0TWOx := highBit(30 downto 0) & "0";
                 
-            elsif(lowTemp <= adjustWordPlus and lowTemp >= adjustWordMin) then
-                wordStartEn <= ACTIVE;
+                --Create 12% buffer by x/8
+                bufferTWELVE := "000" & highBit(31 downto 3);
                 
-            else    
-                frameStartEn <= not ACTIVE;
-                wordStartEn <= not ACTIVE;
+                --Add highBit 4x and 2x to create 6x or frameTresh
+                frameThresh := std_logic_vector(unsigned(t0FOURx) + unsigned(t0TWOx));
+                
+                --adjust word and frame Thresholds
+                adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferTWELVE));
+                adjustWordPlus := std_logic_vector(unsigned(highBit) + unsigned(bufferTWELVE));
+                adjustFrame := std_logic_vector(unsigned(frameThresh) - unsigned(bufferTWELVE));
+                
+                
+                --If lowValue > adjustFrame, send frameStartEn
+                report boolean'image(unsigned(lowBit) >= unsigned(adjustFrame));
+                report boolean'image(unsigned(lowBit) <= unsigned(adjustWordPlus) and unsigned(lowBit) >= unsigned(adjustWordMin));
+                if(unsigned(lowBit) >= unsigned(adjustFrame)) then
+                    
+                    frameStart := ACTIVE;
+                    report "frame enabled";
+                    --Store highValue into t0Samples
+                    t0Samples <= highValue;
+                    
+                --Else If lowValue is between adjustWord +/-, send wordStartEn
+                
+                elsif(unsigned(lowBit) <= unsigned(adjustWordPlus) and unsigned(lowBit) >= unsigned(adjustWordMin)) then
+                    
+                    wordStart := ACTIVE;
+                    report "word enabled";
+                    --Store highValue into t0Samples
+                    t0Samples <= highValue;
+                
+                --Else, set frame and word Start to LOW
+                end if;
+                
+                
+                
+            else
+                wordStart:= not ACTIVE;
+                frameStart:= not ACTIVE;   
             end if;
-            t0Samples <= to_integer(unsigned(highTemp));
-            resultEn <= ACTIVE;
+            
+                wordSignalPlus <= to_integer(unsigned(adjustWordPlus));
+                wordSignalMin <= to_integer(unsigned(adjustWordMin));
+                frameSignal <= to_integer(unsigned(adjustFrame));
+                wordStartEn <= wordStart;
+                frameStartEn <= frameStart;                  
         end if;
-    end process;
-    
-    
+    end process;    
 end T0Sampler_ARCH;
