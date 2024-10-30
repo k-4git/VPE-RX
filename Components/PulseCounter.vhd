@@ -14,36 +14,24 @@ entity PulseCounter is
 end entity PulseCounter;
 
 architecture behavioral of PulseCounter is
---+++=========Constants========+++--
-constant ACTIVE : std_logic := '1';
-    
---+++=========Signals========+++--
-signal vpeReader : std_logic;
-signal rxFrame   : std_logic_vector(7 downto 0) := "00000000";
-
-begin
-    
-    PULSECOUNTER:  process (clock, reset)
-    variable dataFlag : boolean := TRUE;
+    constant ACTIVE : std_logic := '1';
+    signal rxFrame : std_logic_vector(6 downto 0); --:= "0000000";
+    signal vpeReader:  std_logic;
+        
+begin    
+    PULSECOUNTER: process (clock, reset)
     begin
         if reset = ACTIVE then
-            rxFrame <= "00000000";
+            --rxFrame <= (others => '0');
             vpeReader <= '0';
         elsif rising_edge(clock) then
-            if dataFlag = TRUE then
-                vpeReader <= vpeClean;
-                rxFrame(7) <= '0';  -- Always keep MSB as 0
-
-                if t0En = ACTIVE then
-                    if vpeReader = ACTIVE then
-                        rxFrame(6 downto 0) <= rxFrame(5 downto 0) & '1';
-                    elsif vpeReader = not ACTIVE then
-                        rxFrame(6 downto 0) <= rxFrame(5 downto 0) & '0';
-                    end if;                   
-                end if;             
+            vpeReader <= vpeClean;
+           
+            if t0En = ACTIVE then
+                rxFrame <= vpeReader & rxFrame(6 downto 1);
             end if;
         end if;
-        rxWord <= rxFrame(6 downto 0);
+        rxWord <= rxFrame;
     end process;
-
+    
 end architecture;

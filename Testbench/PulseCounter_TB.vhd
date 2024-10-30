@@ -15,32 +15,34 @@ architecture behavioral of PulseCounter_TB is
     -- Component declaration
     component PulseCounter is
         port (
-            clock    : in std_logic;
-            reset    : in std_logic;
-            vpeClean : in std_logic;
-            t0En     : in std_logic;
-            rxWord   : out std_logic_vector(6 downto 0)
+            clock     : in  std_logic;
+            reset     : in  std_logic;
+            vpeClean  : in  std_logic;
+            t0En      : in  std_logic;
+            lowCount  : out integer range 0 to 7;
+            highCount : out integer range 0 to 7
         );
     end component;
     
     -- Signals
-    signal clock    : std_logic := '0';
-    signal reset    : std_logic := '0';
-    signal vpeClean : std_logic := '0';
-    signal t0En     : std_logic := '0';
-    signal rxWord   : std_logic_vector(6 downto 0);
-    signal sim_done : boolean := false;
-    signal t0       : std_logic := '0';
+    signal clock     : std_logic := '0';
+    signal reset     : std_logic := '0';
+    signal vpeClean  : std_logic := '0';
+    signal t0En      : std_logic := '0';
+    signal lowCount  : integer range 0 to 7;
+    signal highCount : integer range 0 to 7;
+    signal sim_done  : boolean := false;
+    signal t0        : std_logic := '0';
 
 begin
     -- Unit Under Test
     UUT: PulseCounter port map (
-        clock    => clock,
-        reset    => reset,
-        vpeClean => vpeClean,
-        t0En     => t0En,
-        rxWord   => rxWord
-        
+        clock     => clock,
+        reset     => reset,
+        vpeClean  => vpeClean,
+        t0En      => t0En,
+        lowCount  => lowCount,
+        highCount => highCount
     );
     
     -- Clock generation
@@ -86,11 +88,13 @@ begin
         
         vpeClean <= '1';
         wait for T0_PERIOD*3;
-        -- Release reset
         
         --all zeros--
         vpeClean <= '0';
-        wait for T0_PERIOD*7;
+        wait for T0_PERIOD*6;
+        
+        vpeClean <= '1';
+        wait for T0_PERIOD;
         
         -- End simulation
         wait for CLOCK_PERIOD * 20;
