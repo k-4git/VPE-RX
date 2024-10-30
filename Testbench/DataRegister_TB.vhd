@@ -12,7 +12,6 @@ architecture behavioral of DataRegister_tb is
         port (
             clock       : in std_logic;
             reset       : in std_logic;
-            pushDataEn  : in std_logic;
             rxNibble    : in std_logic_vector(3 downto 0);
             nibbleReady : in std_logic;
             RxOut       : out std_logic_vector(31 downto 0)
@@ -22,7 +21,6 @@ architecture behavioral of DataRegister_tb is
     -- Test Signals
     signal clock_tb       : std_logic := '0';
     signal reset_tb       : std_logic := '0';
-    signal pushDataEn_tb  : std_logic := '0';
     signal rxNibble_tb    : std_logic_vector(3 downto 0) := (others => '0');
     signal nibbleReady_tb : std_logic := '0';
     signal RxOut_tb       : std_logic_vector(31 downto 0);
@@ -36,7 +34,6 @@ begin
     port map (
         clock       => clock_tb,
         reset       => reset_tb,
-        pushDataEn  => pushDataEn_tb,
         rxNibble    => rxNibble_tb,
         nibbleReady => nibbleReady_tb,
         RxOut       => RxOut_tb
@@ -63,12 +60,10 @@ begin
 
         -- Test Case 1: Load 8 nibbles (32 bits)
         for i in 0 to 7 loop
-            pushDataEn_tb <= '1';
             nibbleReady_tb <= '1';
             rxNibble_tb <= std_logic_vector(to_unsigned(i, 4));
             wait for CLOCK_PERIOD;
             nibbleReady_tb <= '0';
-            pushDataEn_tb <= '0';
             wait for CLOCK_PERIOD;
         end loop;
 
@@ -77,12 +72,10 @@ begin
 
         -- Test Case 2: Load another set of 8 nibbles with different values
         for i in 15 downto 8 loop
-            pushDataEn_tb <= '1';
             nibbleReady_tb <= '1';
             rxNibble_tb <= std_logic_vector(to_unsigned(i mod 16, 4));
             wait for CLOCK_PERIOD;
             nibbleReady_tb <= '0';
-            pushDataEn_tb <= '0';
             wait for CLOCK_PERIOD;
         end loop;
 
@@ -92,12 +85,10 @@ begin
         -- Test Case 3: Test reset during data loading
         -- Load a few nibbles
         for i in 0 to 3 loop
-            pushDataEn_tb <= '1';
             nibbleReady_tb <= '1';
             rxNibble_tb <= std_logic_vector(to_unsigned(i, 4));
             wait for CLOCK_PERIOD;
             nibbleReady_tb <= '0';
-            pushDataEn_tb <= '0';
             wait for CLOCK_PERIOD;
         end loop;
 
@@ -109,7 +100,6 @@ begin
 
         -- Test Case 4: Test nibbleReady control
         -- Try loading with nibbleReady deasserted
-        pushDataEn_tb <= '1';
         nibbleReady_tb <= '0';
         rxNibble_tb <= "1111";
         wait for CLOCK_PERIOD*2;
@@ -118,7 +108,6 @@ begin
         nibbleReady_tb <= '1';
         wait for CLOCK_PERIOD;
         nibbleReady_tb <= '0';
-        pushDataEn_tb <= '0';
         wait for CLOCK_PERIOD*2;
 
         -- Wait for a while before ending simulation

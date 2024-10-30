@@ -27,6 +27,7 @@ begin
     t0GENERATE: process (clock, reset)
     variable genCounter : integer := 0;
     begin
+        
         if reset = ACTIVE then
             genCounter := 0;
             sampleCount <= 0;

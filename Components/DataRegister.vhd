@@ -7,7 +7,6 @@ entity DataRegister is
     port (
         clock       : in std_logic;
         reset      : in std_logic;
-        pushDataEn : in std_logic;
         rxNibble   : in std_logic_vector(3 downto 0);
         nibbleReady: in std_logic;         -- Indicates valid nibble for processing
         RxOut      : out std_logic_vector(31 downto 0)
