@@ -62,23 +62,23 @@ architecture behavioral of RxDecoder is
 
 begin
     -- Synchronization process for inputs
-    SYNC_PROC: process(clock, reset)
-    begin
-        if reset = ACTIVE then
-            vpeClean_sync1 <= '0';
-            vpeClean_sync2 <= '0';
-            t0En_sync1     <= '0';
-            t0En_sync2     <= '0';
-        elsif rising_edge(clock) then
+   -- SYNC_PROC: process(clock, reset)
+   -- begin
+   --     if reset = ACTIVE then
+     --       vpeClean_sync1 <= '0';
+     --       vpeClean_sync2 <= '0';
+     --       t0En_sync1     <= '0';
+     --       t0En_sync2     <= '0';
+      --  elsif rising_edge(clock) then
             -- Two-stage synchronization for vpeClean
-            vpeClean_sync1 <= vpeClean;
-            vpeClean_sync2 <= vpeClean_sync1;
+     --       vpeClean_sync1 <= vpeClean;
+     --       vpeClean_sync2 <= vpeClean_sync1;
             
             -- Two-stage synchronization for t0En
-            t0En_sync1     <= t0En;
-            t0En_sync2     <= t0En_sync1;
-        end if;
-    end process;
+     --       t0En_sync1     <= t0En;
+     --       t0En_sync2     <= t0En_sync1;
+     --   end if;
+   -- end process;
 
     PULSECOUNTER: process (clock, reset)
     variable rxWord_var: std_logic_vector(6 downto 0);  -- Shift register for frame assembly
@@ -91,9 +91,9 @@ begin
             dataReady <= not ACTIVE;          
             
             -- Sample on rising edge of synchronized t0En
-            if t0En_sync2 = ACTIVE and t0prev = '0' then              
+            if t0En = ACTIVE and t0prev = '0' then              
                 -- Check for frame completion (vpeClean=0 and LSB=1)
-                if vpeClean_sync2 = '0' and rxWord_var(0) = '1' then
+                if vpeClean = '0' and rxWord_var(0) = '1' then
                     rxWord <= rxWord_var;        -- Save completed frame
                     rxWord_var := "1111111";     -- Reset shift register
                     dataReady <= ACTIVE;         -- Signal frame complete
@@ -104,10 +104,10 @@ begin
                     dataReady <= ACTIVE;         -- Signal frame complete
                 end if;
                 -- Shift in new bit
-                rxWord_var := rxWord_var(5 downto 0) & vpeClean_sync2;
+                rxWord_var := rxWord_var(5 downto 0) & vpeClean;
             end if;            
           
-            t0Prev <= t0En_sync2;
+            t0Prev <= t0En;
         end if;    
     end process;
 

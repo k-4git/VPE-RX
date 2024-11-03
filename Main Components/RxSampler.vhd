@@ -151,7 +151,7 @@ begin
         end if;
     end process;
     
-  CALCULATE_T0: process(clock, reset)
+    CALCULATE_T0: process(clock, reset)
     variable highBit: std_logic_vector(31 downto 0);
     variable lowBit: std_logic_vector(31 downto 0);
     
@@ -218,16 +218,17 @@ begin
                     t0ReinforceFlag := true;
                     adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferSIXTEEN));
                     adjustWordPlus := std_logic_vector(unsigned(highBit) + unsigned(bufferSIXTEEN));
-                end if;
-                if(t0reinforceFlag = true) then
+             
+                elsif(t0reinforceFlag = true) then
                     --If lowValue is between adjustWord +/-, send wordStartEn
                 
-                    if(unsigned(lowBit) < unsigned(adjustWordPlus) and unsigned(lowBit) > unsigned(adjustWordMin)) then
+                    if(unsigned(lowBit) < unsigned(adjustWordPlus) and unsigned(lowBit) > unsigned(adjustWordMin) 
+			          and unsigned(highBit) < unsigned(adjustWordPlus) and unsigned(highBit) > unsigned(adjustWordMin)) then
                     
                         wordStart := ACTIVE;
                         --Store highValue into t0Samples
                         t0Samples <= highValue;
-                        t0reinforceFlag := false;
+
                     end if;    
                 end if;
                 
@@ -315,8 +316,10 @@ t0GENERATE: process (clock, reset)
             genCounter := 0;
             sampleCount <= 0;
             t0En <= not ACTIVE;
+            
         elsif rising_edge(clock) then
             if t0GenMode = ACTIVE then
+            
                 --Capture the middle of the sample
                 sampleCount <= t0Samples/2;
 
@@ -338,4 +341,5 @@ t0GENERATE: process (clock, reset)
         -- Assign output--
         t0En <= genPulse;
     end process;
+    
 end RxSampler_ARCH;
