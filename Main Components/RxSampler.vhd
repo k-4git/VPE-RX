@@ -1,25 +1,3 @@
-----------------------------------------------------------------------------------
--- 
--- Create Date: 11/03/2024 
--- Design Name: RxSampler - Combines VPE Processing, Rx Control, and T0 Generation
--- Module Name: RxSampler - RxSampler_ARCH
--- Project Name: RxComponents
--- Target Devices: 
--- Tool Versions: 
--- Description: 
---      Combines functionality of:
---      vpeFilter - 16-bit buffer for noise filtering
---      T0Sampler - Frame and word start detection with T0 sampling
---      Rx_Controller - State machine for receive control and flag generation
---      t0Gen - T0 pulse generation for sampling timing
--- Dependencies: 
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
--- 
-----------------------------------------------------------------------------------
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.numeric_std.all;
@@ -32,8 +10,8 @@ entity RxSampler is
         clock       : in STD_LOGIC;           -- System clock
         reset       : in STD_LOGIC;           -- Active high reset
         idleEn      : in STD_LOGIC;                
-        newWord    : out STD_LOGIC;
-        endFrame     : out STD_LOGIC;
+        newWord     : out STD_LOGIC;
+        endFrame    : out STD_LOGIC;
         vpeClean    : out STD_LOGIC;
         t0En        : out STD_LOGIC       -- T0 enable signal for sampling
         
@@ -78,7 +56,6 @@ architecture RxSampler_ARCH of RxSampler is
     --PulseCounter Signals--
     signal rxFrame  : std_logic_vector(6 downto 0); -- Stores assembled frame
     signal t0Prev   : std_logic;                    -- Previous t0En for edge detection
-    signal dataReady_sig: std_logic;
     
     --Create type and signal for state machine
     type state_t is (IDLE, SAMPLE);

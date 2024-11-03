@@ -5,12 +5,12 @@ use ieee.math_real.all;
 
 entity RxDecoder is
     port (
-        clock   : in std_logic;
-        reset : in std_logic;
-        vpeClean : in std_logic;
-        t0En    : in std_logic;
-        idleEn  : out std_logic;
-        rxOut   : out std_logic_vector(31 downto 0)
+        clock       : in std_logic;
+        reset       : in std_logic;
+        vpeClean    : in std_logic;
+        t0En        : in std_logic;
+        idleEn      : out std_logic;
+        rxOut       : out std_logic_vector(31 downto 0)
     );
 end entity RxDecoder;
 
@@ -31,6 +31,9 @@ architecture behavioral of RxDecoder is
     signal nibbleReady : std_logic := '0';
     signal rxNibble    : std_logic_vector(3 downto 0) := (others => '0');
     
+    --DataRegister Signals--
+    signal rxOut_sig: std_logic_vector(31 downto 0); 
+
     --+++=========functions========+++--
     -- Decodes 7-bit input to 4-bit output according to encoding scheme
     function decode_7to4 (input : std_logic_vector(6 downto 0)) return std_logic_vector is
@@ -92,9 +95,13 @@ begin
                 -- Check for frame completion (vpeClean=0 and LSB=1)
                 if vpeClean_sync2 = '0' and rxWord_var(0) = '1' then
                     rxWord <= rxWord_var;        -- Save completed frame
-                    rxWord_var := "1111111";      -- Reset shift register
-                    dataReady <= ACTIVE;           -- Signal frame complete
-                    
+                    rxWord_var := "1111111";     -- Reset shift register
+                    dataReady <= ACTIVE;         -- Signal frame complete
+                -- Add specific check for all zeros pattern
+                elsif rxWord_var = "0000000" then
+                    rxWord <= rxWord_var;        -- Save all zeros frame
+                    rxWord_var := "1111111";     -- Reset shift register
+                    dataReady <= ACTIVE;         -- Signal frame complete
                 end if;
                 -- Shift in new bit
                 rxWord_var := rxWord_var(5 downto 0) & vpeClean_sync2;
@@ -102,41 +109,68 @@ begin
           
             t0Prev <= t0En_sync2;
         end if;    
-    end process; 
+    end process;
 
     DECODER: process (clock, reset)
     variable nibbleReady_var : std_logic := '0';
     variable rxNibble_var : std_logic_vector(3 downto 0) := (others => '0');
-    variable idleEn_var   : std_logic;
+    variable idleEn_var   : std_logic := '0';
     begin
         if reset = ACTIVE then
             -- Reset all outputs
             rxNibble_var := (others => '0');
             nibbleReady_var := '0';
             idleEn <= not ACTIVE;
-
+            idleEn_var := not ACTIVE;
+    
         elsif rising_edge(clock) then
-            if rxWord = "0000000" then
-                -- Detect idle condition
-                idleEn_var := ACTIVE;
-                
-            elsif dataReady = ACTIVE and is_valid_input(rxWord) then
-                -- Process valid input data
-                rxNibble_var := decode_7to4(rxWord);
-                nibbleReady_var := ACTIVE;
-                idleEn_var := not ACTIVE;
+            -- Default state - ensure idleEn goes low after one cycle
+            idleEn_var := not ACTIVE;
+            nibbleReady_var := not ACTIVE;
+    
+            if dataReady = ACTIVE then
+                if rxWord = "0000000" then
+                    -- Set idleEn for just this clock cycle
+                    idleEn_var := ACTIVE;
+                elsif is_valid_input(rxWord) then
+                    -- Process valid input data
+                    rxNibble_var := decode_7to4(rxWord);
+                    nibbleReady_var := ACTIVE;
+                end if;
+            end if;
+    
+            -- Update outputs
+            idleEn <= idleEn_var;
+            rxNibble <= rxNibble_var;
+            nibbleReady <= nibbleReady_var;
+        end if;
+    end process;
+    
+    DATA_OUT: process (clock, reset)
+    -- Tracks received nibbles (0-8)
+    variable nibbleCnt: integer := 0;
+    -- Builds 32-bit word as nibbles arrive
+    variable rxOut_var: std_logic_vector(31 downto 0);
+    begin
+        if reset = ACTIVE then
+            nibbleCnt := 0;
+            rxOut_var := (others => '0');
+            rxOut_sig <= (others => '0'); 
+            
+        elsif rising_edge(clock) then
+            if nibbleCnt = 8 then
+                rxOut_sig <= rxOut_var;
+                nibbleCnt := 0;  
+                rxOut_var := (others => '0');  
             else
-                -- Invalid or no input
-                nibbleReady_var := not ACTIVE;
-                idleEn_var := not ACTIVE;
+                if nibbleReady = ACTIVE then
+                    -- Build word from right to left, MSB will be first nibble received
+                    rxOut_var := rxOut_var(27 downto 0) & rxNibble;
+                    nibbleCnt := nibbleCnt + 1;
+                end if;
             end if;
         end if;
-
-        -- Update outputs
-        idleEn <= idleEn_var;
-        rxNibble <= rxNibble_var;
-        nibbleReady <= nibbleReady_var;
+        RxOut <= rxOut_sig;
     end process;
-
 
 end architecture;
