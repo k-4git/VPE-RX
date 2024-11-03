@@ -112,8 +112,11 @@ begin
     
     variable t0FOURx: std_logic_vector(31 downto 0);
     variable t0TWOx: std_logic_vector(31 downto 0);
-    
-    variable bufferTWELVE: std_logic_vector(31 downto 0);
+
+    variable t0FOURv: std_logic_vector(31 downto 0);
+    variable t0TWOv: std_logic_vector(31 downto 0);
+
+    variable bufferSIXTEEN: std_logic_vector(31 downto 0);
     variable frameThresh: std_logic_vector(31 downto 0);
     
     variable adjustWordMin: std_logic_vector(31 downto 0);
@@ -148,16 +151,19 @@ begin
                 t0FOURx := highBit(29 downto 0) & "00";
                 t0TWOx := highBit(30 downto 0) & "0";
                 
-                --Create 12% buffer by x/8
-                bufferTWELVE := "000" & highBit(31 downto 3);
+                t0FOURv := "00" & highBit(31 downto 2);
+                t0TWOv := "000" & highBit(31 downto 3);
+
+                --Create 16% buffer by x/6
+                bufferSIXTEEN := std_logic_vector(unsigned(t0FOURv) + unsigned(t0TWOv));
                 
                 --Add highBit 4x and 2x to create 6x or frameTresh
                 frameThresh := std_logic_vector(unsigned(t0FOURx) + unsigned(t0TWOx));
                 
                 --adjust word and frame Thresholds
-                adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferTWELVE));
-                adjustWordPlus := std_logic_vector(unsigned(highBit) + unsigned(bufferTWELVE));
-                adjustFrame := std_logic_vector(unsigned(frameThresh) - unsigned(bufferTWELVE));
+                adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferSIXTEEN));
+                adjustWordPlus := std_logic_vector(unsigned(highBit) + unsigned(bufferSIXTEEN));
+                adjustFrame := std_logic_vector(unsigned(frameThresh) - unsigned(bufferSIXTEEN));
                 
                 
                 --If lowValue > adjustFrame, send frameStartEn

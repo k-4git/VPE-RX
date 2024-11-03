@@ -1,229 +1,204 @@
-----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date: 11/02/2024 01:59:09 PM
--- Design Name: 
--- Module Name: RxTop - RxTop_ARCH
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
--- 
-----------------------------------------------------------------------------------
-
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use ieee.numeric_std.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
-entity RxTop is
-
-    
-    
-    Port (
-        vpeSerial: in std_logic;
-        
-        clock: in std_logic;
-        reset: in std_logic;
-        
-        RxOut: out std_logic_vector(31 downto 0);
-        NewWord: out std_logic;
-        EndFlag: out std_logic);
-    end RxTop;
-
-architecture RxTop_ARCH of RxTop is
-
-signal vpeClean: std_logic;
-signal frameStartEn: std_logic;
-signal wordStartEn: std_logic;
-signal t0Samples: integer;
-signal idleEn: std_logic;
-signal t0GenEn: std_logic;
-signal t0En: std_logic;
-signal rxWord: std_logic_vector(6 downto 0);
-signal dataReady: std_logic;
-signal rxNibble: std_logic_vector(3 downto 0); 
-signal nibbleReady: std_logic;
-
-
-component vpeFilter is
-    port (
-        --inputs--
-        vpeSerial: in std_logic;
-        clock: in std_logic;
-        reset: std_logic;
-        
-        --outputs--
-        vpeClean: std_logic
-    );
-end component;
-
-component t0Sampler is
-    port (
-        --inputs--
-        vpeClean: in std_logic;
-        
-        clock: std_logic;
-        reset: in std_logic;
-        --outputs--
-        wordStartEn: out std_logic;
-        frameStartEn: out std_logic;
+entity VpeProcessor is
+    Port ( 
+        vpeSerial : in STD_LOGIC;
+        clock : in STD_LOGIC;
+        reset : in STD_LOGIC;
+        frameStartEn : out STD_LOGIC;
+        wordStartEn : out STD_LOGIC;
         t0Samples: out integer
+    );
+end VpeProcessor;
+
+architecture VpeProcessor_ARCH of VpeProcessor is
+    constant ACTIVE: std_logic := '1';
     
-    );
-end component;
-
-component Rx_Controller is
-    port (
-        --inputs
-        wordStartEn : in STD_LOGIC;
-        frameStartEn : in STD_LOGIC;
-        idleEn : in STD_LOGIC;
-        
-        clock: in std_logic;
-        reset: in std_logic;
-        --outputs
-        wordFlag : out STD_LOGIC;
-        endFlag : out STD_LOGIC;
-        tGenMode : out STD_LOGIC
-    );
-end component;
-
-component T0GEN is
-    port(
-        --inputs
-        t0Samples  : in integer;
-        t0GenEn    : in std_logic;
-        
-        clock      : in std_logic;
-        reset      : in std_logic;
-        --outputs
-        t0En       : out std_logic
-    );
-end component;
-
-component  PulseCounter is
-    port (
-        --inputs
-        vpeClean  : in std_logic;     -- Input pulse signal
-        t0En      : in std_logic;     -- Enable signal for sampling
-        
-        clock     : in std_logic;     -- System clock
-        reset     : in std_logic;     -- Reset signal
-        --outputs
-        dataReady : out std_logic;    -- Indicates valid frame
-        rxWord    : out std_logic_vector(6 downto 0) -- Output frame
-    );
-end component;
-
-component RxDecoder is
-    port (
-        --inputs
-        dataReady   : in std_logic;                     -- Input data valid signal
-        rxWord      : in std_logic_vector(6 downto 0);  -- 7-bit encoded input data 
-           
-        clock       : in std_logic;                     -- System clock
-        reset       : in std_logic;                     -- Asynchronous reset
-        --outputs
-        idleEn      : out std_logic;                    -- Idle state indicator
-        rxNibble    : out std_logic_vector(3 downto 0); -- Decoded 4-bit output
-        nibbleReady : out std_logic                     -- Output data valid signal
-    );
-end component;    
-
-component dataRegister is
-    port (
-        --inputs
-        rxNibble   : in std_logic_vector(3 downto 0);
-        nibbleReady: in std_logic;         -- Indicates valid nibble for processing
-        
-        clock       : in std_logic;
-        reset      : in std_logic;
-        
-        --outputs
-        RxOut      : out std_logic_vector(31 downto 0)
-    );
-end component;
-
+    -- Internal signals from vpeFilter
+    signal vpeClean: std_logic;
+    signal vpeTemp: integer;
+    signal vpeWord: std_logic_vector(15 downto 0);
+    signal vpeBit: integer;
+    
+    -- Internal signals from T0Sampler
+    signal highValue : integer;
+    signal lowValue: integer;
+    signal calculateEn: std_logic;
+    signal frameSignal: integer;
+    signal wordSignalMin: integer;
+    signal wordSignalPlus: integer;
+    signal lastLowSignal: integer;
+    signal lastHighSignal: integer;
 
 begin
+    -- Original vpeFilter process
+    noiseFilter: process (clock, reset)
+    variable vpeSixteen: std_logic_vector(15 downto 0);
+    variable vpeBalance: integer range 0 to 15 := 0;
+    variable shiftBit: integer range 0 to 1;
+    begin
+        if(reset = ACTIVE) then
+            vpeClean <= not ACTIVE;
+            vpeSixteen := (others => '0');
+        elsif(rising_edge (clock)) then
+            if(vpeSixteen(15) = ACTIVE) then                                            
+                shiftBit := 1;                                                          
+            else
+                shiftBit := 0;
+            end if;
+            
+            vpeBalance := vpeBalance - shiftBit;                                        
+            vpeSixteen := vpeSixteen(14 downto 0) & vpeSerial;                         
+            
+            if(vpeSerial = ACTIVE) then                                                 
+                vpeBalance := vpeBalance + 1;
+            end if;
+            
+            vpeTemp <= vpeBalance; 
+            vpeWord <= vpeSixteen;
+            vpeBit <= shiftBit;  
+            
+            if(vpeBalance > 11) then                                                    
+                vpeClean <= ACTIVE;
+            else
+                vpeClean <= not ACTIVE;
+            end if;
+        end if;
+    end process;
 
-    VPE_FILTER: vpeFilter port map(
-        vpeSerial => vpeSerial,          
-        clock => clock,
-        reset => reset,
-        vpeClean => vpeClean
-    );
+    -- Original T0Sampler SAMPLE_COUNTER process
+    SAMPLE_COUNTER: process(clock, reset)
+    variable lastVpe: std_logic := not ACTIVE;
+    variable lastLow: integer;
+    variable lasthigh: integer;
+    begin
+        if(reset = ACTIVE) then
+            highValue <= 0;
+            lowValue <= 0;
+        elsif(rising_edge (clock)) then
+            if(vpeClean = ACTIVE) then
+                if(vpeClean = not lastVpe) then
+                    lastHigh := highValue;
+                    highValue <= 0;
+                    lastVpe := ACTIVE;
+                else
+                    highValue <= highValue + 1;
+                end if;
+            
+            elsif(vpeClean = not ACTIVE) then
+                if(vpeClean = lastVpe) then
+                    lowValue <= lowValue + 1;
+                    calculateEn <= not ACTIVE;
+                else
+                    lastLow:= lowValue;
+                    lowValue <= 0;
+                    calculateEn <= ACTIVE;
+                    lastVpe := not ACTIVE;
+                end if;
+            end if;
+            lastLowSignal <= lastLow;
+            lastHighSignal <= lastHigh;
+        end if;
+    end process;
     
-    T0_SAMPLER: T0Sampler port map(
-        vpeClean => vpeClean,          
-        clock => clock,
-        reset => reset,
-        frameStartEn => frameStartEn,
-        wordStartEn => wordStartEn
-    );
+    -- Original T0Sampler CALCULATE_T0 process
+    CALCULATE_T0: process(clock, reset)
+    variable highBit: std_logic_vector(31 downto 0);
+    variable lowBit: std_logic_vector(31 downto 0);
     
-    RX_CONTROLLER_COMP: Rx_Controller port map(
-        idleEn => idleEn,
-        frameStartEn => frameStartEn,
-        wordStartEn => wordStartEn,          
-        clock => clock,
-        reset => reset,
-        tGenMode => t0GenEn,
-        wordFlag => NewWord,
-        endFlag => EndFlag
-    );     
+    variable t0FOURx: std_logic_vector(31 downto 0);
+    variable t0TWOx: std_logic_vector(31 downto 0);
 
+    variable t0FOURv: std_logic_vector(31 downto 0);
+    variable t0TWOv: std_logic_vector(31 downto 0);
+
+    variable bufferSIXTEEN: std_logic_vector(31 downto 0);
+    variable frameThresh: std_logic_vector(31 downto 0);
     
-    T0_GEN: T0Gen port map(
-        t0GenEn => t0GenEn,
-        t0Samples => t0Samples,          
-        clock => clock,
-        reset => reset,
-        t0En => t0En
-    );
+    variable adjustWordMin: std_logic_vector(31 downto 0);
+    variable adjustWordPlus: std_logic_vector(31 downto 0);
+    variable adjustFrame: std_logic_vector(31 downto 0);
     
-    PULSE_COUNTER: PulseCounter port map(
-        vpeClean => vpeClean,
-        t0En => t0En,
-        reset => reset,
-        clock => clock,
-        rxWord => rxWord,
-        dataReady => dataReady
-    );
-    
-    RX_DECODER: RxDecoder port map(
-        rxWord => rxWord,
-        dataReady => dataReady,
-        reset => reset,
-        clock => clock,
-        idleEn => idleEn,
-        rxNibble => rxNibble,
-        nibbleReady => nibbleReady
-    );
-    
-    DATA_REGISTER: DataRegister port map(
-        rxNibble => rxNibble,
-        nibbleReady => nibbleReady,
-        reset => reset,
-        clock => clock,
-        rxOut => RxOut
-    );
+    variable frameStart: std_logic;
+    variable wordStart: std_logic;
     
     
-end RxTop_ARCH;
+    begin
+    
+        if(reset = ACTIVE) then
+            wordStartEn <= not ACTIVE;
+            frameStartEn <= not ACTIVE;
+            t0Samples <= 0;
+            
+        elsif(rising_edge (clock)) then
+            if(calculateEn = ACTIVE) then
+                --Turn high and low Values to 32-Bit Words
+                highBit := std_logic_vector(to_unsigned(lastHighSignal, 32));
+
+                if(highBit(0) = '1') then
+                    highBit := highBit(31 downto 1) & '0';
+                end if;
+                    
+                lowBit := std_logic_vector(to_unsigned(lastLowSignal, 32));
+                report "starting calculation with high, low being";
+                report integer'image(highValue);
+                report integer'image(lastLowSignal);
+                --Shift highBit to create 4x and 2x
+                t0FOURx := highBit(29 downto 0) & "00";
+                t0TWOx := highBit(30 downto 0) & "0";
+                
+                t0FOURv := "0" & highBit(31 downto 1);
+                t0TWOv := "00" & highBit(31 downto 2);
+
+                --Create 16% buffer by x/6
+                bufferSIXTEEN := std_logic_vector(unsigned(t0FOURv) + unsigned(t0TWOv));
+                
+                --Add highBit 4x and 2x to create 6x or frameTresh
+                frameThresh := std_logic_vector(unsigned(t0FOURx) + unsigned(t0TWOx));
+                
+                --adjust word and frame Thresholds
+                adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferSIXTEEN));
+                adjustWordPlus := std_logic_vector(unsigned(highBit) + unsigned(bufferSIXTEEN));
+                adjustFrame := std_logic_vector(unsigned(frameThresh) - unsigned(bufferSIXTEEN));
+                
+                
+                --If lowValue > adjustFrame, send frameStartEn
+                report boolean'image(unsigned(lowBit) >= unsigned(adjustFrame));
+                report boolean'image(unsigned(lowBit) <= unsigned(adjustWordPlus) and unsigned(lowBit) >= unsigned(adjustWordMin));
+                if(unsigned(lowBit) >= unsigned(adjustFrame)) then
+                    
+                    frameStart := ACTIVE;
+                    report "frame enabled";
+                    --Store highValue into t0Samples
+                    t0Samples <= highValue;
+                    
+                --Else If lowValue is between adjustWord +/-, send wordStartEn
+                
+                elsif(unsigned(lowBit) <= unsigned(adjustWordPlus) and unsigned(lowBit) >= unsigned(adjustWordMin)) then
+                    
+                    wordStart := ACTIVE;
+                    report "word enabled";
+                    --Store highValue into t0Samples
+                    t0Samples <= highValue;
+                
+                --Else, set frame and word Start to LOW
+                end if;
+                
+                
+                
+            else
+                wordStart:= not ACTIVE;
+                frameStart:= not ACTIVE;   
+            end if;
+            
+                wordSignalPlus <= to_integer(unsigned(adjustWordPlus));
+                wordSignalMin <= to_integer(unsigned(adjustWordMin));
+                frameSignal <= to_integer(unsigned(adjustFrame));
+                wordStartEn <= wordStart;
+                frameStartEn <= frameStart;                  
+        end if;
+    end process;    
+
+end VpeProcessor_ARCH;
