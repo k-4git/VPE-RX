@@ -135,6 +135,11 @@ begin
             if(calculateEn = ACTIVE) then
                 --Turn high and low Values to 32-Bit Words
                 highBit := std_logic_vector(to_unsigned(lastHighSignal, 32));
+
+                if(highBit(0) = '1') then
+                    highBit := highBit(31 downto 1) & '0';
+                end if;
+                    
                 lowBit := std_logic_vector(to_unsigned(lastLowSignal, 32));
                 report "starting calculation with high, low being";
                 report integer'image(highValue);
