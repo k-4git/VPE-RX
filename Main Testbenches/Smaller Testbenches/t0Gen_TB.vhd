@@ -17,7 +17,7 @@ architecture behavioral of t0GEN_TB is
             clock      : in std_logic;
             reset      : in std_logic;
             t0Samples  : in integer;
-            t0GenEn    : in std_logic;
+            t0GenMode    : in std_logic;
             t0En       : out std_logic
         );
     end component;
@@ -26,7 +26,7 @@ architecture behavioral of t0GEN_TB is
     signal clock      : std_logic := '0';
     signal reset      : std_logic := '0';
     signal t0Samples  : integer := 0;
-    signal t0GenEn    : std_logic := '0';
+    signal t0GenMode    : std_logic := '0';
     signal t0En       : std_logic;
     
     signal sim_done   : boolean := false;
@@ -37,7 +37,7 @@ begin
         clock     => clock,
         reset     => reset,
         t0Samples => t0Samples,
-        t0GenEn   => t0GenEn,
+        t0GenMode   => t0GenMode,
         t0En      => t0En
     );
     
@@ -58,7 +58,7 @@ begin
     begin
         -- Initialize signals
         reset <= '1';
-        t0GenEn <= '0';
+        t0GenMode <= '0';
         t0Samples <= 8;  -- Test with 8 samples
         wait for CLOCK_PERIOD * 2;
         
@@ -67,7 +67,7 @@ begin
         wait for CLOCK_PERIOD * 2;
         
         -- Enable t0Gen
-        t0GenEn <= '1';
+        t0GenMode <= '1';
         wait for CLOCK_PERIOD * 50;  -- Wait for multiple cycles
         
         -- Test with different sample values
@@ -78,13 +78,13 @@ begin
         wait for CLOCK_PERIOD * 50;
         
         -- Disable t0Gen
-        t0GenEn <= '0';
+        t0GenMode <= '0';
         wait for CLOCK_PERIOD * 10;
         
         -- Test enable/disable sequence
-        t0GenEn <= '1';
+        t0GenMode <= '1';
         wait for CLOCK_PERIOD * 20;
-        t0GenEn <= '0';
+        t0GenMode <= '0';
         wait for CLOCK_PERIOD * 10;
         
         -- End simulation
