@@ -36,7 +36,7 @@ architecture sim of VpeProcessor_tb is
             else
                 vpe <= '1';
             end if;
-            wait for clock_period * 5; -- 100 clock cycles = 1us with 10ns period
+            wait for clock_period * 100; -- 100 clock cycles = 1us with 10ns period
         end loop;
     end procedure;
 
