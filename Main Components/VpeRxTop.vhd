@@ -25,6 +25,7 @@ architecture VpeRxTop_ARCH of VpeRxTop is
             idleEn      : in STD_LOGIC;
             newWord     : out STD_LOGIC;
             endFrame    : out STD_LOGIC;
+            t0Sample    : out INTEGER;
             vpeClean    : out STD_LOGIC;
             t0En        : out STD_LOGIC
         );
@@ -36,6 +37,7 @@ architecture VpeRxTop_ARCH of VpeRxTop is
             reset     : in STD_LOGIC;
             vpeClean  : in STD_LOGIC;
             t0En      : in STD_LOGIC;
+            t0Sample  : in INTEGER;
             idleEn    : out STD_LOGIC;
             rxOut     : out STD_LOGIC_VECTOR(31 downto 0)
         );
@@ -45,6 +47,7 @@ architecture VpeRxTop_ARCH of VpeRxTop is
     signal vpeClean    : STD_LOGIC;
     signal t0En        : STD_LOGIC;
     signal idleEn      : STD_LOGIC;
+    signal t0Sample    : INTEGER;
 
 begin
     -- Instantiate RxSampler
@@ -53,6 +56,7 @@ begin
         vpeSerial   => vpeSerial,
         clock       => clock,
         reset       => reset,
+        t0Sample    => t0Sample,
         idleEn      => idleEn,
         newWord     => newWord,
         endFrame    => endFrame,
@@ -66,6 +70,7 @@ begin
         clock       => clock,
         reset       => reset,
         vpeClean    => vpeClean,
+        t0Sample    => t0Sample,
         t0En        => t0En,
         idleEn      => idleEn,
         rxOut       => rxOut

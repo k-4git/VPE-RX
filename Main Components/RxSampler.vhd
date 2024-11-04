@@ -13,6 +13,7 @@ entity RxSampler is
         newWord     : out STD_LOGIC;
         endFrame    : out STD_LOGIC;
         vpeClean    : out STD_LOGIC;
+        t0Sample    : out integer;
         t0En        : out STD_LOGIC       -- T0 enable signal for sampling
         
     );
@@ -170,7 +171,7 @@ begin
     
     variable frameStart: std_logic;
     variable wordStart: std_logic;
-    
+    variable adjustedHighValue: integer;
     variable frameT0: std_logic_vector(31 downto 0);
     variable t0ReinforceFlag: boolean;
     begin
@@ -183,8 +184,9 @@ begin
         elsif(rising_edge (clock)) then
             if(calculateEn = ACTIVE) then
                 --Turn high and low Values to 32-Bit Words
-                highBit := std_logic_vector(to_unsigned(highValue, 32));
-
+                adjustedHighValue := highValue + 8;
+                highBit := std_logic_vector(to_unsigned(adjustedHighValue, 32));
+               
                 if(highBit(0) = '1') then
                     highBit := highBit(31 downto 1) & '0';
                 end if;
@@ -213,7 +215,7 @@ begin
                     
                     frameStart := ACTIVE;
                     --Store highValue into t0Samples
-                    t0Samples <= highValue;
+                    t0Samples <= highValue +8;
                     
                     t0ReinforceFlag := true;
                     adjustWordMin := std_logic_vector(unsigned(highBit) - unsigned(bufferSIXTEEN));
@@ -227,9 +229,9 @@ begin
                     
                         wordStart := ACTIVE;
                         --Store highValue into t0Samples
-                        t0Samples <= highValue;
+                        t0Samples <= highValue +8;
 
-                    end if;    
+                    end if;   
                 end if;
                 
             --Else, set frame and word Start to LOW    
@@ -242,7 +244,8 @@ begin
                 wordSignalMin <= to_integer(unsigned(adjustWordMin));
                 frameSignal <= to_integer(unsigned(adjustFrame));
                 wordStartEn <= wordStart;
-                frameStartEn <= frameStart;                  
+                frameStartEn <= frameStart;    
+                t0Sample <= t0Samples;              
         end if;
     end process;     
 
@@ -309,37 +312,33 @@ begin
         end if;   
     end process;
     
-t0GENERATE: process (clock, reset)
-    variable genCounter : integer := 0;
+-- State register
+    t0GENERATE: process (clock, reset)
+        variable genCounter : integer := 0;
     begin
         if reset = ACTIVE then
             genCounter := 0;
-            sampleCount <= 0;
             t0En <= not ACTIVE;
-            
         elsif rising_edge(clock) then
-            if t0GenMode = ACTIVE then
-            
-                --Capture the middle of the sample
-                sampleCount <= t0Samples/2;
-
-                -- We want to output a pulse every half cycle to sample in the middle
-                if genCounter /= sampleCount then
-                    genCounter := genCounter+1;
-                    genPulse <= not ACTIVE;
-                    
+            if t0GenMode = ACTIVE and t0Samples > 0 then
+                -- Generate single pulse at middle of bit period
+                if genCounter = (t0Samples/2) then
+                    t0En <= '1';
                 else
-                    --Reset Counter whenever genCounter is half of sample amount
+                    t0En <= '0';
+                end if;
+                
+                -- Counter management
+                if genCounter >= t0Samples-1 then
                     genCounter := 0;
-                    genPulse <= not genPulse;    
-                end if;   
+                else
+                    genCounter := genCounter + 1;
+                end if;
             else 
-                genPulse <= not ACTIVE;
+                t0En <= '0';
                 genCounter := 0;
             end if;
         end if;
-        -- Assign output--
-        t0En <= genPulse;
     end process;
     
 end RxSampler_ARCH;
