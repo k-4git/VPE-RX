@@ -10,7 +10,7 @@ architecture behavioral of PulseCounter_TB is
     -- Constants
     constant CLOCK_PERIOD : time := 10 ns;
     constant ACTIVE : std_logic := '1';
-    constant T0_PERIOD : time := 1 ms;
+    constant T0_PERIOD : time := 1 us;
     
     -- Component declaration
     component PulseCounter is
@@ -83,30 +83,30 @@ begin
         reset <= '0';
         wait for CLOCK_PERIOD;
         
-        --vpe data '0000111'--
-        vpeClean <= '0';
-        wait for T0_PERIOD*4;
-        
-        vpeClean <= '1';
-        wait for T0_PERIOD*3;
-        
-        --all zeros--
+        --vpe data '0000001'--
         vpeClean <= '0';
         wait for T0_PERIOD*6;
         
         vpeClean <= '1';
         wait for T0_PERIOD;
         
-        --vpe data '0011'
+        --"0011"--
         vpeClean <= '0';
-        wait for T0_PERIOD *2;
+        wait for T0_PERIOD*2;
         
         vpeClean <= '1';
-        wait for T0_PERIOD *2;
+        wait for T0_PERIOD*2;
         
-        --vpe data '0111'
+        --vpe data '01'
         vpeClean <= '0';
         wait for T0_PERIOD;
+        
+        vpeClean <= '1';
+        wait for T0_PERIOD;
+        
+        --vpe data '00111'
+        vpeClean <= '0';
+        wait for T0_PERIOD*2;
         
         vpeClean <= '1';
         wait for T0_PERIOD * 3;

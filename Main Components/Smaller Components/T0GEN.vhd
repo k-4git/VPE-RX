@@ -8,7 +8,7 @@ entity t0GEN is
         clock      : in std_logic;
         reset      : in std_logic;
         t0Samples  : in integer;
-        t0GenEn    : in std_logic;
+        t0GenMode    : in std_logic;
         t0En       : out std_logic
     );
 end entity t0GEN;
@@ -33,7 +33,7 @@ begin
             sampleCount <= 0;
             t0En <= not ACTIVE;
         elsif rising_edge(clock) then
-            if t0GenEn = ACTIVE then
+            if t0GenMode = ACTIVE then
                 --Capture the middle of the sample
                 sampleCount <= t0Samples/2;
 
