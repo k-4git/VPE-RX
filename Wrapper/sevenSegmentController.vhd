@@ -48,7 +48,8 @@ constant ACTIVE: std_logic := '1';
 
 begin
 
-
+    --Will break RxOut into 4 different variables,
+    --and store said variables into the wordDigits 1,2,3,4
     Display_Shift: process(clock, reset)
     variable localRxOut: std_logic_vector(15 downto 0);
     
