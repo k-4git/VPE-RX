@@ -11,7 +11,7 @@ entity RxDecoder is
         t0En        : in std_logic;
         t0Sample    : in integer;
         idleEn      : out std_logic;
-        rxOut       : out std_logic_vector(31 downto 0)
+        rxOut       : out std_logic_vector(15 downto 0)
     );
 end entity RxDecoder;
 
@@ -33,7 +33,7 @@ architecture behavioral of RxDecoder is
     signal rxNibble    : std_logic_vector(3 downto 0) := (others => '0');
     
     --DataRegister Signals--
-    signal rxOut_sig: std_logic_vector(31 downto 0); 
+    signal rxOut_sig: std_logic_vector(15 downto 0); 
 
     --+++=========functions========+++--
     -- Decodes 7-bit input to 4-bit output according to encoding scheme
@@ -142,7 +142,7 @@ begin
     -- Tracks received nibbles (0-8)
     variable nibbleCnt: integer := 0;
     -- Builds 32-bit word as nibbles arrive
-    variable rxOut_var: std_logic_vector(31 downto 0);
+    variable rxOut_var: std_logic_vector(15 downto 0);
     begin
         if reset = ACTIVE then
             nibbleCnt := 0;
@@ -157,7 +157,7 @@ begin
             else
                 if nibbleReady = ACTIVE then
                     -- Build word from right to left, MSB will be first nibble received
-                    rxOut_var := rxOut_var(27 downto 0) & rxNibble;
+                    rxOut_var := rxOut_var(11 downto 0) & rxNibble;
                     nibbleCnt := nibbleCnt + 1;
                 end if;
             end if;
