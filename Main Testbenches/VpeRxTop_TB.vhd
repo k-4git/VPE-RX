@@ -30,7 +30,8 @@ architecture sim of VpeRxTop_tb is
     
     procedure send_vpe_pattern(
         signal vpe: out std_logic;
-        pattern: in string) is
+        pattern: in string;
+        period_multiplier: in integer) is
     begin
         for i in pattern'range loop
             if pattern(i) = '0' then
@@ -38,7 +39,7 @@ architecture sim of VpeRxTop_tb is
             else
                 vpe <= '1';
             end if;
-            wait for clock_period * 100; -- 100 clock cycles = 1us with 10ns period
+            wait for clock_period * period_multiplier;
         end loop;
     end procedure;
 
@@ -73,32 +74,32 @@ begin
 
         -- Test Pattern Sequence
         -- First frame
-        send_vpe_pattern(vpeSerial_tb, "0000001");     -- FRAME_START       
-        send_vpe_pattern(vpeSerial_tb, "0011");        -- VPE-Pattern #3
-        send_vpe_pattern(vpeSerial_tb, "01");          -- WORD_START       
-        send_vpe_pattern(vpeSerial_tb, "00111");       -- VPE-Pattern #6
-        send_vpe_pattern(vpeSerial_tb, "0000000");     -- all zeros
+        send_vpe_pattern(vpeSerial_tb, "0000001", 100);     -- FRAME_START       
+        send_vpe_pattern(vpeSerial_tb, "0011", 100);        -- VPE-Pattern #3
+        send_vpe_pattern(vpeSerial_tb, "01", 100);          -- WORD_START       
+        send_vpe_pattern(vpeSerial_tb, "00111", 100);       -- VPE-Pattern #6
+       -- send_vpe_pattern(vpeSerial_tb, "0000000", 100);     -- all zeros
         
         -- Second frame
-        send_vpe_pattern(vpeSerial_tb, "0000001");     -- FRAME_START 
-        send_vpe_pattern(vpeSerial_tb, "0011111");     -- VPE-Pattern #15
-        send_vpe_pattern(vpeSerial_tb, "01");          -- WORD_START  
-        send_vpe_pattern(vpeSerial_tb, "011111");      -- VPE-Pattern #9
-        send_vpe_pattern(vpeSerial_tb, "01");          -- WORD_START  
-        send_vpe_pattern(vpeSerial_tb, "001111");      -- VPE-Pattern #10
-        send_vpe_pattern(vpeSerial_tb, "01");          -- WORD_START 
-        send_vpe_pattern(vpeSerial_tb, "000111");      -- VPE-Pattern #11
-        send_vpe_pattern(vpeSerial_tb, "01");          -- WORD_START 
-        send_vpe_pattern(vpeSerial_tb, "011");         -- VPE-PATTERN #0
+        send_vpe_pattern(vpeSerial_tb, "0000001", 500);     -- FRAME_START 
+        send_vpe_pattern(vpeSerial_tb, "0011111", 500);     -- VPE-Pattern #15
+        send_vpe_pattern(vpeSerial_tb, "01", 500);          -- WORD_START  
+        send_vpe_pattern(vpeSerial_tb, "011111", 500);      -- VPE-Pattern #9
+        send_vpe_pattern(vpeSerial_tb, "01", 500);          -- WORD_START  
+        send_vpe_pattern(vpeSerial_tb, "001111", 500);      -- VPE-Pattern #10
+        send_vpe_pattern(vpeSerial_tb, "01", 500);          -- WORD_START 
+        send_vpe_pattern(vpeSerial_tb, "000111", 500);      -- VPE-Pattern #11
+        send_vpe_pattern(vpeSerial_tb, "01", 500);          -- WORD_START 
+        send_vpe_pattern(vpeSerial_tb, "011", 500);         -- VPE-PATTERN #0
         
         -- Third frame     
-        send_vpe_pattern(vpeSerial_tb, "0000001");     -- FRAME_START 
-        send_vpe_pattern(vpeSerial_tb, "000001");      -- VPE-PATTERN #13
-        send_vpe_pattern(vpeSerial_tb, "0000000");     -- all zeros
-        send_vpe_pattern(vpeSerial_tb, "0");           -- all zeros
+        send_vpe_pattern(vpeSerial_tb, "0000001", 50);     -- FRAME_START 
+        send_vpe_pattern(vpeSerial_tb, "000001", 50);      -- VPE-PATTERN #13
+        send_vpe_pattern(vpeSerial_tb, "0000000", 50);     -- all zeros
+        send_vpe_pattern(vpeSerial_tb, "0", 50);           -- all zeros
               
         wait for clock_period * 1000; -- Allow time to observe final state
-        
+        reset_tb <= '1';
         wait;
     end process;
 end sim;

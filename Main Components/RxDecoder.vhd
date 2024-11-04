@@ -9,6 +9,7 @@ entity RxDecoder is
         reset       : in std_logic;
         vpeClean    : in std_logic;
         t0En        : in std_logic;
+        t0Sample    : in integer;
         idleEn      : out std_logic;
         rxOut       : out std_logic_vector(31 downto 0)
     );
@@ -61,34 +62,24 @@ architecture behavioral of RxDecoder is
         end function;
 
 begin
-    -- Synchronization process for inputs
-   -- SYNC_PROC: process(clock, reset)
-   -- begin
-   --     if reset = ACTIVE then
-     --       vpeClean_sync1 <= '0';
-     --       vpeClean_sync2 <= '0';
-     --       t0En_sync1     <= '0';
-     --       t0En_sync2     <= '0';
-      --  elsif rising_edge(clock) then
-            -- Two-stage synchronization for vpeClean
-     --       vpeClean_sync1 <= vpeClean;
-     --       vpeClean_sync2 <= vpeClean_sync1;
-            
-            -- Two-stage synchronization for t0En
-     --       t0En_sync1     <= t0En;
-     --       t0En_sync2     <= t0En_sync1;
-     --   end if;
-   -- end process;
 
     PULSECOUNTER: process (clock, reset)
     variable rxWord_var: std_logic_vector(6 downto 0);  -- Shift register for frame assembly
+    variable t0Sample_prev: integer := 0;  -- Previous value of t0Sample
     begin
         if reset = ACTIVE then
             rxWord <= (others => '1');
             rxWord_var := (others => '1');
+            t0Sample_prev := t0Sample;
             
         elsif rising_edge(clock) then
             dataReady <= not ACTIVE;          
+            
+            -- Reset rxWord when t0Sample changes
+            if t0Sample /= t0Sample_prev then
+                rxWord <= (others => '1');
+                rxWord_var := (others => '1');
+            end if;
             
             -- Sample on rising edge of synchronized t0En
             if t0En = ACTIVE and t0prev = '0' then              
@@ -108,6 +99,7 @@ begin
             end if;            
           
             t0Prev <= t0En;
+            t0Sample_prev := t0Sample;  -- Update previous value
         end if;    
     end process;
 
