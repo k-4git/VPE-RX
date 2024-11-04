@@ -50,21 +50,7 @@ end DataController;
 
 architecture DataController_ARCH of DataController is
 
-function Led_FOUR_Vector(vector: std_logic_vector) return std_logic_vector is
 
-variable ledQUAD: std_logic_vector(3 downto 0) := (others => '0');
-
-begin
-    for i in 0 to 3 loop
-        for j in 0 to 15 loop
-            if(vector(j + 16* i) = '1') then
-                LEDQUAD(i) := '1';
-            end if;    
-        end loop;
-    end loop;                           
-        
-    return ledQUAD;
-end function Led_FOUR_Vector;
 ------------------------------------------------------------------CONSTANTS
 constant ACTIVE : std_logic := '1';
 
@@ -77,6 +63,9 @@ signal frameTWO: std_logic_vector( 63 downto 0);
 signal frameTHREE: std_logic_vector( 63 downto 0);
 signal frameFOUR: std_logic_vector( 63 downto 0);
 
+
+   signal LIVEselectedArray: std_logic_vector(63 downto 0);
+    signal LIVEselectedSwitches: std_logic_vector(3 downto 0);
 begin
     
     --Holds the Data Decoded from the receive and pushes each word into a 64-Bit Value
@@ -111,11 +100,9 @@ begin
         leds <= (others => '0');
     elsif(rising_edge (clock)) then
         
-        --If newWord is ACTIVE, increase wordCounter by 1
-        if(newWord = ACTIVE) then
-            wordCounter := wordCounter + 1;
-        --elsif endFrame is ACTIVE, change frame Arrays
-        elsif(endFrame = ACTIVE) then
+            
+        --sif endFrame is ACTIVE, change frame Arrays
+        if(endFrame = ACTIVE) then
             frameCounter := frameCounter + 1;
             wordCounter := 0;
         end if;
@@ -125,10 +112,14 @@ begin
         
         --Insert rxOut into 16-bit variable
         currentWord := rxOut;
-        
-        --If wordCounter is not at the end, insert currentWord from the right.
-        if(wordCounter < 4) then
-            dataArray(frameCounter) := currentFrame(47 downto 0) & currentWord;
+    
+        --If newWord is ACTIVE, increase wordCounter by 1
+        if(newWord = ACTIVE) then
+            --If wordCounter is not at the end, insert currentWord from the right.
+            if(wordCounter < 4) then
+                dataArray(frameCounter) := currentFrame(47 downto 0) & currentWord;
+                wordCounter := wordCounter + 1;
+            end if;
         end if;
         
         --Stores data Arrays into seperate frame signals for view.
@@ -139,78 +130,108 @@ begin
     end if;
 
     end process;    
-    
-    --Will push data into the four 4-bit vectors from the selected
-    --16-bit array using switches and the confirmation
     LED_SWITCH_DISPLAY: process(clock, reset)
+    -- Local variables for frame processing
+    variable selectedArray: std_logic_vector(63 downto 0) := (others => '0');
+    variable selectedSwitches: std_logic_vector(3 downto 0) := (others => '0');
     
-    --Local variable for arrays and the switches for detection
-    variable selectedArray: std_logic_vector(15 downto 0);
-    variable selectedSwitches: std_logic_vector(3 downto 0);
+    -- Variables for seven segment display
+    variable tempWordDigit3: std_logic_vector(3 downto 0) := (others => '0');
+    variable tempWordDigit2: std_logic_vector(3 downto 0) := (others => '0');
+    variable tempWordDigit1: std_logic_vector(3 downto 0) := (others => '0');
+    variable tempWordDigit0: std_logic_vector(3 downto 0) := (others => '0');
     
-    --Local variable for the sevenSegmentDriver based off
-    --Selected Switch for the associated Word
-    variable tempWordDigit3 : std_logic_vector(3 downto 0);
-    variable tempWordDigit2 : std_logic_vector(3 downto 0);
-    variable tempWordDigit1 : std_logic_vector(3 downto 0);
-    variable tempWordDigit0 : std_logic_vector(3 downto 0);
-    
-    --The Leds divided into 4 pieces for the 4 frames
-    variable frameLED1: std_logic_vector(3 downto 0);
-    variable frameLED2: std_logic_vector(3 downto 0);
-    variable frameLED3: std_logic_vector(3 downto 0);
-    variable frameLED4: std_logic_vector(3 downto 0);
-    
-    --The total LED vector
-    variable tempLeds :std_logic_vector(15 downto 0);
+    -- LED status variables
+    variable tempLeds: std_logic_vector(15 downto 0) := (others => '0');
+
     begin
-        if(reset = ACTIVE) then
+        if reset = ACTIVE then
+            -- Reset all outputs
             wordDigit3 <= (others => '0');
             wordDigit2 <= (others => '0');
             wordDigit1 <= (others => '0');
             wordDigit0 <= (others => '0');
-            selectedArray := (others => '0');
-        elsif(rising_edge (clock)) then
-            --If RECEIVE MODE IS ON
-            if(modeSwitch = ACTIVE) then
-                --Calls function to return a 4-bit vector
-                --that lights each one if there is a word
-                --in the associated 16-bit of the total frame cap
-                frameLED1 := Led_FOUR_Vector(frameONE);
-                frameLED2 := Led_FOUR_Vector(frameTWO);
-                frameLED3 := Led_FOUR_Vector(frameTHREE);
-                frameLED4 := Led_FOUR_Vector(frameFOUR);
+            leds <= (others => '0');
+            
+        elsif rising_edge(clock) then
+            if modeSwitch = ACTIVE then
+                -- Check Frame ONE status
+                if( frameONE(63 downto 48) /= x"0000" and frameONE(47 downto 0) = x"000000000000") then
+                    tempLeds(15) := '1'; 
+                end if;
+                if(frameONE(47 downto 32) /= x"0000" and (frameONE(63 downto 48) & frameOne(31 downto 0)) = x"000000000000") then
+                    tempLeds(14) := '1';
+                end if;
+                if(frameONE(31 downto 16) /= x"0000" and (frameONE(63 downto 32) & frameOne(15 downto 0)) = x"000000000000") then
+                    tempLeds(13) := '1';
+                end if;
+                if(frameONE(15 downto 0) /= x"0000" and frameONE(63 downto 16) = x"000000000000") then
+                    tempLeds(12) := '1';
+                end if;
                 
-                --Combine all Signals into tempLeds to later display on leds
-                tempLeds := frameLED1 & frameLED2 & frameLED3 & frameLED4;
+                -- Frame TWO (LEDs 11-8)
+                if( frameTWO(63 downto 48) /= x"0000" and frameTWO(47 downto 0) = x"000000000000") then
+                    tempLeds(11) := '1'; 
+                end if;
+                if(frameTWO(47 downto 32) /= x"0000" and (frameTWO(63 downto 48) & frameTWO(31 downto 0)) = x"000000000000") then
+                    tempLeds(10) := '1';
+                end if;
+                if(frameTWO(31 downto 16) /= x"0000" and (frameTWO(63 downto 32) & frameTWO(15 downto 0)) = x"000000000000") then
+                    tempLeds(9) := '1';
+                end if;
+                if(frameTWO(15 downto 0) /= x"0000" and frameTWO(63 downto 16) = x"000000000000") then
+                    tempLeds(8) := '1';
+                end if;
                 
-                --If deButton(loadButton) then the switches input is 
-                --updated on the SevenSegmentDriver
-                if(deButton = ACTIVE) then
-                    
-                    --If switches = (xxxx 0000 0000 0000)
-                    if(switches(15 downto 12) = not "0000" and switches(11 downto 0) = x"000") then
-                        selectedArray := FrameONE;
-                        selectedSwitches := switches(15 downto 12);        
-                    --If switches = (0000 xxxx 0000 0000)
-                    elsif(switches(11 downto 8) = not "0000" and switches(15 downto 12) = "0000" and switches(7 downto 0) = x"00") then
-                        selectedArray := FrameTWO;
-                        selectedSwitches := switches(11 downto 8); 
-                    --If switches = (0000 0000 xxxx 0000)
-                    elsif(switches(7 downto 4) = not "0000" and switches(15 downto 9) = "0000" and switches(3 downto 0) = "0000") then        
-                        selectedArray := FrameTHREE;
-                        selectedSwitches := switches(7 downto 4); 
-                    --If switches = (0000 0000 0000 xxxx)    
-                    elsif(switches(3 downto 0) = not "0000" and switches(15 downto 4) = x"000") then      
-                        selectedArray := FrameFOUR;
-                        selectedSwitches := switches(3 downto 0); 
-                    else
-                        selectedArray := selectedArray;
+                -- Frame THREE (LEDs 7-4)
+                if( frameTHREE(63 downto 48) /= x"0000" and frameTHREE(47 downto 0) = x"000000000000") then
+                    tempLeds(11) := '1'; 
+                end if;
+                if(frameTHREE(47 downto 32) /= x"0000" and (frameTHREE(63 downto 48) & frameTHREE(31 downto 0)) = x"000000000000") then
+                    tempLeds(10) := '1';
+                end if;
+                if(frameTHREE(31 downto 16) /= x"0000" and (frameTHREE(63 downto 32) & frameTHREE(15 downto 0)) = x"000000000000") then
+                    tempLeds(9) := '1';
+                end if;
+                if(frameTHREE(15 downto 0) /= x"0000" and frameTHREE(63 downto 16) = x"000000000000") then
+                    tempLeds(8) := '1';
+                end if;
+                
+                -- Frame FOUR (LEDs 3-0)
+                if( frameFOUR(63 downto 48) /= x"0000" and frameFOUR(47 downto 0) = x"000000000000") then
+                    tempLeds(11) := '1'; 
+                end if;
+                if(frameFOUR(47 downto 32) /= x"0000" and (frameFOUR(63 downto 48) & frameFOUR(31 downto 0)) = x"000000000000") then
+                    tempLeds(10) := '1';
+                end if;
+                if(frameFOUR(31 downto 16) /= x"0000" and (frameFOUR(63 downto 32) & frameFOUR(15 downto 0)) = x"000000000000") then
+                    tempLeds(9) := '1';
+                end if;
+                if(frameFOUR(15 downto 0) /= x"0000" and frameFOUR(63 downto 16) = x"000000000000") then
+                    tempLeds(8) := '1';
+                end if;
+    
+                leds <= tempLeds;
+    
+                -- Handle seven segment display when deButton is pressed
+                if deButton = ACTIVE then
+                    -- Frame selection based on switch position
+                    if switches(15 downto 12) /= "0000" and switches(11 downto 0) = x"000" then
+                        selectedArray := frameONE;
+                        selectedSwitches := switches(15 downto 12);
+                    elsif switches(11 downto 8) /= "0000" and switches(15 downto 12) = "0000" and switches(7 downto 0) = x"00" then
+                        selectedArray := frameTWO;
+                        selectedSwitches := switches(11 downto 8);
+                    elsif switches(7 downto 4) /= "0000" and switches(15 downto 8) = x"00" and switches(3 downto 0) = "0000" then
+                        selectedArray := frameTHREE;
+                        selectedSwitches := switches(7 downto 4);
+                    elsif switches(3 downto 0) /= "0000" and switches(15 downto 4) = x"000" then
+                        selectedArray := frameFOUR;
+                        selectedSwitches := switches(3 downto 0);
                     end if;
-                    
-                    --Case Statement for storing values into the variables for
-                    --SevenSegmentDriver use
-                    case(selectedSwitches) is
+    
+                    -- Word selection within selected frame
+                    case selectedSwitches is
                         when "0001" =>
                             tempWordDigit3 := selectedArray(15 downto 12);
                             tempWordDigit2 := selectedArray(11 downto 8);
@@ -232,24 +253,17 @@ begin
                             tempWordDigit1 := selectedArray(55 downto 52);
                             tempWordDigit0 := selectedArray(51 downto 48);
                         when others =>
-                            tempWordDigit3 := tempWordDigit3;
-                            tempWordDigit2 := tempWordDigit2;
-                            tempWordDigit1 := tempWordDigit1;
-                            tempWordDigit0 := tempWordDigit0;
+                            null;
                     end case;
-                    
-                    
-                    --Store Variable into signals
+    
+                    -- Update seven segment display outputs
                     wordDigit3 <= tempWordDigit3;
                     wordDigit2 <= tempWordDigit2;
                     wordDigit1 <= tempWordDigit1;
-                    wordDigit0 <= tempWordDigit0;     
-                        
-                end if;    
-                
-                
-            
+                    wordDigit0 <= tempWordDigit0;
+                end if;
             end if;
-        end if;          
+        end if;
     end process;
+   
 end DataController_ARCH;
