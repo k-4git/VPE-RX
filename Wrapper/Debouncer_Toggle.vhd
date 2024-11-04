@@ -44,11 +44,16 @@ architecture Debouncer_Toggle_ARCH of Debouncer_Toggle is
 
 constant ACTIVE: std_logic:= '1';    
 begin
+        --Process for alternating the tempSwitch from
+        --detecting modeChange
         TOGGLE: process(clock, reset)
         variable tempSwitch: std_logic:= not ACTIVE;
         begin
+            --if Reset is Active, set tempSwtich to not ACTIVE
             if(reset = ACTIVE) then
                 tempSwitch := not ACTIVE;
+            --elsif rising_edge, if modeChange is ACTIVE,
+            --alter tempSwitch
             elsif(rising_edge (clock)) then
                 if(modeChange = ACTIVE) then
                     tempSwitch := not tempSwitch;
