@@ -96,12 +96,12 @@ begin
                     endFlag <= not ACTIVE;     
                     
                     --If Decoder sees all 0s, go back to IDLE
-                    if(idleEn = ACTIVE) then
-                        rx_State <= IDLE;
+                    --if(idleEn = ACTIVE) then
+                        --rx_State <= IDLE;
                         
                     --Else, if Frame is Detected, Keep Decoding
                     --and send endFlag
-                    elsif(frameStartEn = ACTIVE) then
+                    if(frameStartEn = ACTIVE) then
                         endFlag <= ACTIVE;
                     --Else, if Word is detected, Send WordFlag
                     elsif(wordStartEn = ACTIVE) then
