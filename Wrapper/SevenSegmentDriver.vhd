@@ -1,4 +1,3 @@
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -148,7 +147,7 @@ begin
     SCAN_RATE: process(reset, clock)
         variable count: integer range 0 to COUNT_1KHZ;
     begin
-        --manage-count-value--------------------------------------------
+    	--manage-count-value--------------------------------------------
         if (reset = ACTIVE) then
             count := 0;
         elsif (rising_edge(clock)) then
@@ -162,7 +161,7 @@ begin
         --update-enable-signal-------------------------------------------
         enableCount <= not ACTIVE;  --default value unless count reaches terminal
         if (count=COUNT_1KHZ) then
-            enableCount <= ACTIVE;
+        	enableCount <= ACTIVE;
         end if;
     end process SCAN_RATE;
 
@@ -183,6 +182,3 @@ begin
 
 
 end SevenSegmentDriver_ARCH;
- 
-
- 

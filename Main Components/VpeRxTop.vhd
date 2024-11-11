@@ -9,9 +9,7 @@ entity VpeRxTop is
         reset       : in STD_LOGIC;       -- Active high reset
         
         -- Top-level outputs
-        rxOut      : out STD_LOGIC_VECTOR(31 downto 0);  -- Final decoded 32-bit output
-        newWord    : out STD_LOGIC;       -- Indicates new word is being processed
-        endFrame   : out STD_LOGIC        -- Indicates end of frame
+        rxOut      : out STD_LOGIC_VECTOR(15 downto 0)  -- Final decoded 32-bit output
     );
 end VpeRxTop;
 
@@ -23,9 +21,9 @@ architecture VpeRxTop_ARCH of VpeRxTop is
             clock       : in STD_LOGIC;
             reset       : in STD_LOGIC;
             idleEn      : in STD_LOGIC;
-            newWord     : out STD_LOGIC;
-            endFrame    : out STD_LOGIC;
             t0Sample    : out INTEGER;
+            newWord     : out std_logic;
+            endFrame    : out std_logic;
             vpeClean    : out STD_LOGIC;
             t0En        : out STD_LOGIC
         );
@@ -38,8 +36,10 @@ architecture VpeRxTop_ARCH of VpeRxTop is
             vpeClean  : in STD_LOGIC;
             t0En      : in STD_LOGIC;
             t0Sample  : in INTEGER;
+            newWord   : in std_logic;
+            endFrame  : in std_logic;
             idleEn    : out STD_LOGIC;
-            rxOut     : out STD_LOGIC_VECTOR(31 downto 0)
+            rxOut     : out STD_LOGIC_VECTOR(15 downto 0)
         );
     end component;
 
@@ -48,6 +48,8 @@ architecture VpeRxTop_ARCH of VpeRxTop is
     signal t0En        : STD_LOGIC;
     signal idleEn      : STD_LOGIC;
     signal t0Sample    : INTEGER;
+    signal newWord     : std_logic;
+    signal endFrame    : std_logic;
 
 begin
     -- Instantiate RxSampler
@@ -71,6 +73,8 @@ begin
         reset       => reset,
         vpeClean    => vpeClean,
         t0Sample    => t0Sample,
+        newWord     => newWord,
+        endFrame    => endFrame,
         t0En        => t0En,
         idleEn      => idleEn,
         rxOut       => rxOut

@@ -10,6 +10,8 @@ entity RxDecoder is
         vpeClean    : in std_logic;
         t0En        : in std_logic;
         t0Sample    : in integer;
+        newWord     : in std_logic;
+        endFrame    : in std_logic;
         idleEn      : out std_logic;
         rxOut       : out std_logic_vector(15 downto 0)
     );
@@ -17,11 +19,6 @@ end entity RxDecoder;
 
 architecture behavioral of RxDecoder is
     constant ACTIVE : std_logic := '1';
-    -- Synchronization chains
-    signal vpeClean_sync1 : std_logic;
-    signal vpeClean_sync2 : std_logic;
-    signal t0En_sync1     : std_logic;
-    signal t0En_sync2     : std_logic;
 
     --PulseCounter Signals--
     signal rxWord  : std_logic_vector(6 downto 0); -- Stores assembled frame
@@ -33,7 +30,8 @@ architecture behavioral of RxDecoder is
     signal rxNibble    : std_logic_vector(3 downto 0) := (others => '0');
     
     --DataRegister Signals--
-    signal rxOut_sig: std_logic_vector(15 downto 0); 
+    signal myData: std_logic_vector(15 downto 0); 
+    signal wordCount: integer; -- Counter for newWord Might use later for the serial interface.
 
     --+++=========functions========+++--
     -- Decodes 7-bit input to 4-bit output according to encoding scheme
@@ -42,7 +40,7 @@ architecture behavioral of RxDecoder is
             case input is
                 -- Mapping of 7-bit codes to 4-bit values (0-F)
                 when "1111011" => return "0000"; when "1111001" => return "0001"; when "1110111" => return "0010";
-                when "1110011" => return "0011"; when "1110001" => return "0100"; when "1110111" => return "0101";
+                when "1110011" => return "0011"; when "1110001" => return "0100"; when "1101111" => return "0101";
                 when "1100111" => return "0110"; when "1100011" => return "0111"; when "1100001" => return "1000";
                 when "1011111" => return "1001"; when "1001111" => return "1010"; when "1000111" => return "1011";
                 when "1000011" => return "1100"; when "1000001" => return "1101"; when "0111111" => return "1110";
@@ -110,10 +108,13 @@ begin
     begin
         if reset = ACTIVE then
             -- Reset all outputs
-            rxNibble_var := (others => '0');
-            nibbleReady_var := '0';
-            idleEn <= not ACTIVE;
+            rxNibble_var := (others => '0');  
             idleEn_var := not ACTIVE;
+            nibbleReady_var := '0';
+            
+            idleEn <= not ACTIVE;
+            nibbleReady <= not ACTIVE;
+            rxNibble <= (others => '0');
     
         elsif rising_edge(clock) then
             -- Default state - ensure idleEn goes low after one cycle
@@ -138,31 +139,28 @@ begin
         end if;
     end process;
     
-    DATA_OUT: process (clock, reset)
-    -- Tracks received nibbles (0-8)
-    variable nibbleCnt: integer := 0;
-    -- Builds 32-bit word as nibbles arrive
-    variable rxOut_var: std_logic_vector(15 downto 0);
+    DATA_REGISTER: process (clock, reset)   
     begin
         if reset = ACTIVE then
-            nibbleCnt := 0;
-            rxOut_var := (others => '0');
-            rxOut_sig <= (others => '0'); 
-            
+            myData <= (others => '0');
+            rxOut <= (others => '0');
+            wordCount <= 0;
         elsif rising_edge(clock) then
-            if nibbleCnt = 8 then
-                rxOut_sig <= rxOut_var;
-                nibbleCnt := 0;  
-                rxOut_var := (others => '0');  
-            else
-                if nibbleReady = ACTIVE then
-                    -- Build word from right to left, MSB will be first nibble received
-                    rxOut_var := rxOut_var(11 downto 0) & rxNibble;
-                    nibbleCnt := nibbleCnt + 1;
-                end if;
+            -- Continue shifting in new nibbles
+            if nibbleReady = ACTIVE then
+                myData <= myData(11 downto 0) & rxNibble;
+            end if;
+            
+            -- Count newWord
+            if newWord = ACTIVE then
+                wordCount <= wordCount + 1;
+            end if;
+            
+            -- Only update output register when endFrame is active
+            if endFrame = ACTIVE then
+                rxOut <= myData;
+                myData <= (others => '0'); --reset to get ready for next frame;
             end if;
         end if;
-        RxOut <= rxOut_sig;
     end process;
-
 end architecture;

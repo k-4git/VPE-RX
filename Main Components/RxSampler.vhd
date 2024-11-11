@@ -29,7 +29,7 @@ architecture RxSampler_ARCH of RxSampler is
     signal vpeBit: integer;
     
     --Internal connection between filter and sampler
-    signal vpeClean_sig: std_logic;
+   -- signal vpeSerial: std_logic;
     
     --INTERNAL SIGNALS FOR T0 SAMPLER
     signal highValue : integer;
@@ -61,51 +61,11 @@ architecture RxSampler_ARCH of RxSampler is
     --Create type and signal for state machine
     type state_t is (IDLE, SAMPLE);
     signal rx_State: state_t;
-begin
     
-    noiseFilter: process (clock, reset)
-    --VARIABLES
-    variable vpeSixteen: std_logic_vector(15 downto 0);
-    variable vpeBalance: integer range 0 to 15 := 0;
-    variable shiftBit: integer range 0 to 1;
-    begin
-        if(reset = ACTIVE) then
-            vpeClean_sig <= not ACTIVE;
-            vpeSixteen := (others => '0');
-        elsif(rising_edge (clock)) then
-            --Determines if leftmost bit is 1 or 0 and stores it
-            --in shiftBit
-            if(vpeSixteen(15) = ACTIVE) then                                            
-                shiftBit := 1;                                                          
-            else
-                shiftBit := 0;
-            end if;
-            
-            --Subtracts the Leftmost bit out from the Counter
-            --Shifts vpeSerial into the Rightmost bit
-            vpeBalance := vpeBalance - shiftBit;                                        
-            vpeSixteen := vpeSixteen(14 downto 0) & vpeSerial;                         
-            
-            --If vpeSerial is Active, add to Counter
-            if(vpeSerial = ACTIVE) then                                                 
-                vpeBalance := vpeBalance + 1;
-            end if;
-            
-            --DISPLAY INTERNAL SIGNALS
-            vpeTemp <= vpeBalance; 
-            vpeWord <= vpeSixteen;
-            vpeBit <= shiftBit;  
-            
-            --If Counter is 3/4 of total length of buffer, Output HIGH
-            if(vpeBalance > 11) then                                                    
-                vpeClean_sig <= ACTIVE;
-            else
-                vpeClean_sig <= not ACTIVE;
-            end if;
-        end if;
-        vpeClean <= vpeClean_sig;
-    end process;
+begin
 
+    vpeClean <= vpeSerial;
+      
     SAMPLE_COUNTER: process(clock, reset)
     variable lastVpe: std_logic := not ACTIVE;
     variable lastLow: integer;
@@ -117,10 +77,10 @@ begin
         elsif(rising_edge (clock)) then
         
             --if vpeClean is HIGH,
-            if(vpeClean_sig = ACTIVE) then
+            if(vpeSerial = ACTIVE) then
             
                 --If vpeClean is rising, then set highValue to 0
-                if(vpeClean_sig = not lastVpe) then
+                if(vpeSerial = not lastVpe) then
                     lastHigh := highValue;
                     highValue <= 0;
                     lastVpe := ACTIVE;
@@ -130,10 +90,10 @@ begin
                 end if;
             
             --If vpeClean is LOW    
-            elsif(vpeClean_sig = not ACTIVE) then
+            elsif(vpeSerial = not ACTIVE) then
                 
                 --If vpeClean is not falling
-                if(vpeClean_sig = lastVpe) then
+                if(vpeSerial = lastVpe) then
                     --Incrememnt lowValue and set calculateEn to LOW
                     lowValue <= lowValue + 1;
                     calculateEn <= not ACTIVE;
@@ -290,12 +250,12 @@ begin
                     endFrame <= not ACTIVE;     
                     
                     --If Decoder sees all 0s, go back to IDLE
---                    if(idleEn = ACTIVE) then
---                        rx_State <= IDLE;
---                        endFrame <= ACTIVE;
+                    if(idleEn = ACTIVE) then
+                        rx_State <= IDLE;
+                        endFrame <= ACTIVE;
                     --Else, if Frame is Detected, Keep Decoding
                     --and send endFrame
-                    if(frameStartEn = ACTIVE) then
+                    elsif(frameStartEn = ACTIVE) then
                         endFrame <= ACTIVE;
                     --Else, if Word is detected, Send WordFlag
                     elsif(wordStartEn = ACTIVE) then
